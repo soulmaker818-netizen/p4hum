@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>春夏秋冬配對王</title>
+<style>
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  padding: 20px;
+  font-family: "Noto Sans TC", "Microsoft JhengHei",
+               "PingFang TC", sans-serif;
+  background: linear-gradient(135deg, #fff4e6, #e8f7ff);
+  color: #374151;
+}
+h1 {
+  text-align: center;
+  color: #ff7b54;
+  font-size: 34px;
+}
+.subtitle {
+  text-align: center;
+  font-size: 18px;
+  margin-bottom: 25px;
+}
+.game {
+  max-width: 1100px;
+  margin: auto;
+}
+.columns {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 20px;
+}
+.panel {
+  background: white;
+  padding: 20px;
+  border-radius: 20px;
+  box-shadow: 0 5px 15px #00000012;
+}
+.panel h2 {
+  text-align: center;
+  color: #558b6e;
+}
+.season-list,
+.clue-list {
+  display: grid;
+  gap: 12px;
+}
+.season {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px;
+  border: 3px solid #d8e9dc;
+  border-radius: 15px;
+  background: #f6fff7;
+  font-size: 20px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.season:hover,
+.season.selected {
+  border-color: #55b879;
+  background: #e4f9e9;
+}
+.season .emoji {
+  font-size: 38px;
+}
+.clue {
+  padding: 14px;
+  border: 2px solid #d9e2f2;
+  border-radius: 12px;
+  background: #f8faff;
+  cursor: pointer;
+  font-size: 17px;
+  transition: 0.2s;
+}
+.clue:hover {
+  background: #edf3ff;
+  border-color: #8aa8ed;
+}
+.clue.correct {
+  background: #e0f7e8;
+  border-color: #54b879;
+  cursor: default;
+}
+.clue.wrong {
+  background: #fff0ef;
+  border-color: #ff8d82;
+}
+.feedback {
+  text-align: center;
+  min-height: 35px;
+  margin: 20px 0;
+  font-size: 20px;
+  font-weight: bold;
+}
+.score {
+  text-align: center;
+  font-size: 20px;
+  margin: 15px;
+}
+button {
+  display: block;
+  margin: 15px auto;
+  padding: 12px 28px;
+  border: none;
+  border-radius: 30px;
+  background: #ff9878;
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+}
+button:hover {
+  background: #f47d5b;
+}
+@media (max-width: 700px) {
+  .columns {
+    grid-template-columns: 1fr;
+  }
+  h1 {
+    font-size: 27px;
+  }
+}
+</style>
+</head>
+<body>
+<div class="game">
+  <h1>🌸 春夏秋冬配對王 🌸</h1>
+  <p class="subtitle">
+    請先選擇左邊的季節，再選擇右邊正確的描述！
+  </p>
+  <div class="score">
+    已完成：<span id="completed">0</span> / 12
+  </div>
+  <div class="columns">
+    <section class="panel">
+      <h2>🌈 四季圖像</h2>
+      <div class="season-list" id="seasonList"></div>
+    </section>
+    <section class="panel">
+      <h2>🔍 圖片及文字描述</h2>
+      <div class="clue-list" id="clueList"></div>
+    </section>
+  </div>
+  <div class="feedback" id="feedback">
+    選擇一個季節，開始配對吧！
+  </div>
+  <button onclick="restartGame()">🔄 重新開始</button>
+</div>
+<script>
+const seasons = [
+  { id: "spring", name: "春天", emoji: "🌸" },
+  { id: "summer", name: "夏天", emoji: "☀️" },
+  { id: "autumn", name: "秋天", emoji: "🍁" },
+  { id: "winter", name: "冬天", emoji: "❄️" }
+];
+const clues = [
+  { season: "spring", text: "🌸 百花盛開，樹木長出嫩綠的新葉。" },
+  { season: "spring", text: "🦋 蝴蝶在花叢中飛舞。" },
+  { season: "spring", text: "🌧️ 天氣開始回暖，有時會下春雨。" },
+  { season: "summer", text: "🌞 天氣炎熱，陽光猛烈。" },
+  { season: "summer", text: "🍉 可以吃西瓜和雪糕消暑。" },
+  { season: "summer", text: "🏊 人們會去游泳池游泳。" },
+  { season: "autumn", text: "🍂 樹葉逐漸變黃、變紅，然後飄落。" },
+  { season: "autumn", text: "🥮 中秋節時，人們會賞月、吃月餅。" },
+  { season: "autumn", text: "🍃 天氣開始轉涼，秋高氣爽。" },
+  { season: "winter", text: "🧣 天氣寒冷，需要穿上厚外套。" },
+  { season: "winter", text: "⛄ 有些地方會下雪，可以堆雪人。" },
+  { season: "winter", text: "🧤 人們會戴冷帽、圍巾和手套保暖。" }
+];
+let selectedSeason = null;
+let completed = 0;
+let matchedClues = new Set();
+function shuffle(array) {
+  return [...array].sort(() => Math.random() - 0.5);
+}
+function renderSeasons() {
+  const container = document.getElementById("seasonList");
+  container.innerHTML = "";
+  seasons.forEach(season => {
+    const card = document.createElement("div");
+    card.className = "season";
+    card.dataset.id = season.id;
+    card.innerHTML = `
+      <span class="emoji">${season.emoji}</span>
+      <span>${season.name}</span>
+    `;
+    card.addEventListener("click", () => {
+      if (selectedSeason) {
+        document.querySelectorAll(".season")
+          .forEach(item => item.classList.remove("selected"));
+      }
+      selectedSeason = season.id;
+      card.classList.add("selected");
+      document.getElementById("feedback").textContent =
+        `你選擇了${season.name}，請找出相關描述！`;
+    });
+    container.appendChild(card);
+  });
+}
+function renderClues() {
+  const container = document.getElementById("clueList");
+  container.innerHTML = "";
+  shuffle(clues).forEach((clue, index) => {
+    const card = document.createElement("div");
+    card.className = "clue";
+    card.textContent = clue.text;
+    card.dataset.index = index;
+    card.addEventListener("click", () => {
+      if (matchedClues.has(index)) return;
+      if (!selectedSeason) {
+        document.getElementById("feedback").textContent =
+          "請先選擇左邊的一個季節！";
+        return;
+      }
+      if (selectedSeason === clue.season) {
+        card.classList.add("correct");
+        matchedClues.add(index);
+        completed++;
+        const season = seasons.find(
+          item => item.id === selectedSeason
+        );
+        document.getElementById("completed").textContent = completed;
+        document.getElementById("feedback").textContent =
+          `🎉 答對了！這是${season.name}的特色！`;
+        if (completed === clues.length) {
+          document.getElementById("feedback").textContent =
+            "🏆 太棒了！你已成為春夏秋冬配對王！";
+        }
+      } else {
+        card.classList.add("wrong");
+        document.getElementById("feedback").textContent =
+          "再想一想！這個描述屬於哪個季節呢？";
+        setTimeout(() => card.classList.remove("wrong"), 600);
+      }
+    });
+    container.appendChild(card);
+  });
+}
+function restartGame() {
+  selectedSeason = null;
+  completed = 0;
+  matchedClues = new Set();
+  document.getElementById("completed").textContent = "0";
+  document.getElementById("feedback").textContent =
+    "選擇一個季節，開始配對吧！";
+  renderSeasons();
+  renderClues();
+}
+restartGame();
+</script>
+</body>
+</html>
